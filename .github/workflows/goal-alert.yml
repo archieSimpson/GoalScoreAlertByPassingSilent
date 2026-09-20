@@ -1,0 +1,54 @@
+# Goal Alert workflow
+#
+# WHERE THIS FILE GOES: in your GitHub repo, at the path
+#   .github/workflows/goal-alert.yml
+#
+# WHAT IT DOES: gives you a "Run workflow" button (on github.com or in the
+# GitHub mobile app) with a text box where you type the team to watch. It
+# then runs goal_alert.py on GitHub's servers for you -- nothing needs to
+# be running on your phone or computer.
+#
+# BEFORE FIRST USE: add these three repo Secrets (Settings -> Secrets and
+# variables -> Actions -> New repository secret):
+#   API_FOOTBALL_KEY, PUSHOVER_APP_TOKEN, PUSHOVER_USER_KEY
+
+name: Goal Alert
+
+on:
+  workflow_dispatch:
+    inputs:
+      team:
+        description: "Team to watch this week (e.g. Arsenal)"
+        required: true
+        type: string
+
+# Stops a previous run for the same workflow if you accidentally start a
+# second one, so you never have two loops (and two sets of alerts) going.
+concurrency:
+  group: goal-alert
+  cancel-in-progress: true
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    # Safety net: GitHub cancels the job automatically if it somehow runs
+    # this long (a full match + stoppage time is normally under 3 hours).
+    timeout-minutes: 240
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Watch for goals
+        env:
+          API_FOOTBALL_KEY: ${{ secrets.API_FOOTBALL_KEY }}
+          PUSHOVER_APP_TOKEN: ${{ secrets.PUSHOVER_APP_TOKEN }}
+          PUSHOVER_USER_KEY: ${{ secrets.PUSHOVER_USER_KEY }}
+        run: python3 goal_alert.py "${{ inputs.team }}"
